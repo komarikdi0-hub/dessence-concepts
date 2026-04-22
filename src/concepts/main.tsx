@@ -241,7 +241,7 @@ function GallerySlider({ images, onOpenLightbox }: { images: string[]; onOpenLig
   );
 }
 
-function CardDetailPage({ card, onBack, onOpenLightbox }: { card: Card; onBack: () => void; onOpenLightbox?: (images: string[], idx: number, rect: DOMRect | null) => void }) {
+function CardDetailPage({ card, onBack, onOpenLightbox, onAskAbout }: { card: Card; onBack: () => void; onOpenLightbox?: (images: string[], idx: number, rect: DOMRect | null) => void; onAskAbout?: (card: Card) => void }) {
   const [tldr, setTldr] = useState(card.aiAnalysis || '');
   const [labels, setLabels] = useState<string[]>(card.labels || []);
   const [notes, setNotes] = useState('');
@@ -294,18 +294,19 @@ function CardDetailPage({ card, onBack, onOpenLightbox }: { card: Card; onBack: 
         padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 8,
         borderBottom: `1px solid ${gray4}`, flexShrink: 0,
       }}>
-        <button
-          onClick={onBack}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'transparent', cursor: 'pointer', padding: '6px 10px', borderRadius: 8, color: black, fontSize: 13, fontWeight: 500, fontFamily: sans }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
-          Back
-        </button>
-        <span style={{ flex: 1, fontSize: 11, fontWeight: 600, fontFamily: sans, color: gray2, letterSpacing: '0.04em', textTransform: 'uppercase', marginLeft: 8 }}>
+        <span style={{ flex: 1, fontSize: 11, fontWeight: 600, fontFamily: sans, color: gray2, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
           {TYPE_LABELS[card.type]}{showSource ? ` · ${card.source}` : ''}{card.time ? ` · ${card.time}` : ''}
         </span>
         <Btn size="sm" icon={<Share2 size={11} />}>Share</Btn>
         <Btn size="sm" color="#FF3B30" icon={<Trash2 size={11} />}>Delete</Btn>
+        <button
+          onClick={onBack}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, border: `1px solid ${gray4}`, background: 'transparent', cursor: 'pointer', borderRadius: 8, color: gray1, transition: 'background 0.15s, color 0.15s' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = bg; (e.currentTarget as HTMLElement).style.color = black; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = gray1; }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+        </button>
       </div>
 
       {/* Scrollable body — centered column */}
@@ -395,6 +396,25 @@ function CardDetailPage({ card, onBack, onOpenLightbox }: { card: Card; onBack: 
           />
         </div>
 
+        {/* Ask about this */}
+        {onAskAbout && (
+          <button
+            onClick={() => onAskAbout(card)}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              width: '100%', padding: '12px 16px', borderRadius: 10,
+              border: `1px solid ${accent}`, background: `rgba(0,113,227,0.05)`,
+              cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: sans, color: accent,
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = `rgba(0,113,227,0.12)`)}
+            onMouseLeave={e => (e.currentTarget.style.background = `rgba(0,113,227,0.05)`)}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/></svg>
+            Ask about this
+          </button>
+        )}
+
       </div>
       </div>
     </div>
@@ -436,9 +456,10 @@ function IconBtn({ children, size = 32, style: extraStyle, onClick }: {
 
 // ── Card component ──
 
-function MemoryCard({ card, onOpen }: {
+function MemoryCard({ card, onOpen, isSelected }: {
   card: Card;
   onOpen: () => void;
+  isSelected?: boolean;
 }) {
   const [h, setH] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -510,11 +531,12 @@ function MemoryCard({ card, onOpen }: {
       style={{
         background: white,
         borderRadius: 10,
-        border: `1px solid ${h ? gray3 : gray4}`,
+        border: `1.5px solid ${isSelected ? accent : (h ? gray3 : gray4)}`,
+        boxShadow: isSelected ? `0 0 0 3px rgba(0,113,227,0.12)` : 'none',
         overflow: 'hidden',
         marginBottom: 10,
         cursor: 'pointer',
-        transition: 'border-color 0.3s ease, transform 0.3s ease',
+        transition: 'border-color 0.2s ease, box-shadow 0.2s ease, transform 0.3s ease',
         transform: h ? 'translateY(-1px)' : 'none',
       }}
     >
@@ -1228,6 +1250,8 @@ function App() {
   const chatInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const menuAnim = useAnimatedMount(menuOpen, 150);
+  const [chatContextCard, setChatContextCard] = useState<Card | null>(null);
+  const sidebarAnim = useAnimatedMount(selectedCard !== null, 260);
   const [chatWidth, setChatWidth] = useState(570);
   const [dragging, setDragging] = useState(false);
   const dragRef = useRef({ startX: 0, startW: 0 });
@@ -1435,11 +1459,9 @@ function App() {
 
   function openCard(card: Card) {
     setSelectedCard(card);
-    setCurrentView('card');
   }
   function closeCard() {
     setSelectedCard(null);
-    setCurrentView('pinboard');
   }
 
   function openTraits() {
@@ -1519,10 +1541,6 @@ function App() {
     );
   }
 
-  if (currentView === 'card' && selectedCard) {
-    return <CardDetailPage card={selectedCard} onBack={closeCard} onOpenLightbox={openLightbox} />;
-  }
-
   return (
     <div style={{ height:'100vh', display:'flex', overflow:'hidden', fontFamily:sans, color:black, position:'relative' }}>
     <style>{`@keyframes voice-spin { to { transform: rotate(360deg); } }`}</style>
@@ -1588,6 +1606,7 @@ function App() {
                         key={key}
                         card={card}
                         onOpen={() => openCard(card)}
+                        isSelected={selectedCard?.id === card.id}
                       />
                     ))}
                   </div>
@@ -1699,6 +1718,20 @@ function App() {
           </div>
         )}
 
+        {/* Context chip — shows which card is being discussed */}
+        {chatContextCard && (
+          <div style={{ padding: '0 20px 6px', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', background: 'rgba(0,113,227,0.06)', borderRadius: 10, border: '1px solid rgba(0,113,227,0.16)' }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              <span style={{ fontSize: 11, fontWeight: 600, color: accent, fontFamily: sans, flexShrink: 0 }}>Context:</span>
+              <span style={{ fontSize: 12, fontWeight: 500, color: black, fontFamily: sans, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{chatContextCard.title}</span>
+              <button onClick={() => setChatContextCard(null)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 2, display: 'flex', alignItems: 'center', color: gray2, flexShrink: 0 }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+              </button>
+            </div>
+          </div>
+        )}
+
         <div style={{ padding:'10px 20px 24px' }}>
           <div
             onClick={() => chatInputRef.current?.focus()}
@@ -1766,6 +1799,30 @@ function App() {
       </div>
 
       </>
+
+      {/* ═══ Detail Sidebar ═══ */}
+      {sidebarAnim.mounted && selectedCard && (
+        <div style={{
+          position: 'absolute', top: 0, right: 0,
+          width: chatWidth + 6,
+          height: '100vh',
+          zIndex: 50,
+          transform: sidebarAnim.visible ? 'translateX(0)' : 'translateX(100%)',
+          transition: 'transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1)',
+          boxShadow: '-4px 0 24px rgba(0,0,0,0.08)',
+        }}>
+          <CardDetailPage
+            card={selectedCard}
+            onBack={closeCard}
+            onOpenLightbox={openLightbox}
+            onAskAbout={(card) => {
+              setChatContextCard(card);
+              closeCard();
+              setTimeout(() => chatInputRef.current?.focus(), 100);
+            }}
+          />
+        </div>
+      )}
 
       {/* Lightbox */}
       {lbAnim.mounted && lbDisplayImages.length > 0 && (
