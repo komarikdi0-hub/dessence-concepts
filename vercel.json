@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/concepts", "destination": "/concepts.html" },
+    { "source": "/concepts/alt", "destination": "/index.html" }
+  ]
+}
