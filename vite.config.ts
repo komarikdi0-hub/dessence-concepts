@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { resolve } from 'path'
 
 export default defineConfig({
+  base: '/dessence-concepts/',
   plugins: [react(), tailwindcss()],
   build: {
     sourcemap: false,
